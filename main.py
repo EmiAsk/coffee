@@ -1,21 +1,25 @@
 import sys
 import sqlite3
-from PyQt5.uic import loadUi
+from addEditCoffeeForm import Ui_Form
+from ui_main import Ui_MainWindow
 
-from PyQt5.QtWidgets import QApplication, QMainWindow, QMessageBox, QWidget, QHeaderView, QTableWidget, QTableWidgetItem
+from PyQt5.QtWidgets import QApplication, QMainWindow, QWidget, QHeaderView,\
+    QTableWidget, QTableWidgetItem
 
 
 def except_hook(cls, exception, traceback):
     sys.__excepthook__(cls, exception, traceback)
 
 
-class CoffeeTable(QMainWindow):
+class CoffeeTable(QMainWindow, Ui_MainWindow):
+    """Главное окно с таблицей"""
+
     def __init__(self):
         super(CoffeeTable, self).__init__()
-        loadUi('main.ui', self)
+        self.setupUi(self)
         self.form = None
 
-        self.connection = sqlite3.connect('coffee.db')
+        self.connection = sqlite3.connect('data/coffee.db')
         self.cursor = self.connection.cursor()
 
         self.edit_btn.clicked.connect(self.open_edit_form)
@@ -41,6 +45,8 @@ class CoffeeTable(QMainWindow):
         self.tableWidget.resizeRowsToContents()
 
     def open_edit_form(self):
+        """Открытие формы редактирования"""
+
         self.statusBar().showMessage('')
         self.statusBar().setStyleSheet('')
 
@@ -60,6 +66,8 @@ class CoffeeTable(QMainWindow):
         self.form.show()
 
     def open_add_form(self):
+        """Открытие формы добавления"""
+
         self.form = EditAddForm(regime=1, info=[], parent=self)
         self.form.show()
 
@@ -72,44 +80,54 @@ class CoffeeTable(QMainWindow):
                                    WHERE sorts.degree = degrees.id''').fetchall()
 
     def edit_coffee(self, input_data, sort_id):
+        """Редактирование сорта кофе"""
+
         self.cursor.execute('''UPDATE sorts SET name = ?, degree =
                                 (SELECT id FROM degrees WHERE name = ?),
                                 ground_or_grain = ?, taste = ?, price = ?, volume = ?
                                 WHERE id = ?''', (*input_data, sort_id))
         self.connection.commit()
 
-        self.update_table()
+        self.update_table()  # обновление таблицы
 
     def add_coffee(self, input_data):
+        """Добавление сорта кофе"""
+
         self.cursor.execute('''INSERT INTO sorts (name, degree,
         ground_or_grain, taste, price, volume) VALUES
         (?, (SELECT id FROM degrees WHERE name = ?), ?, ?, ?, ?)''', input_data)
 
         self.connection.commit()
 
-        self.update_table()
+        self.update_table()  # обновление таблицы
 
     def get_degrees(self):
+        """Получение всех видов обжарки"""
+
         return self.cursor.execute('''SELECT name FROM degrees''').fetchall()
 
 
-class EditAddForm(QWidget):
+class EditAddForm(QWidget, Ui_Form):
+    """Форма редактирования / добавления"""
+
     def __init__(self, regime, info, parent: CoffeeTable):
         super(EditAddForm, self).__init__()
-        loadUi('addEditCoffeeForm.ui', self)
+        self.setupUi(self)
 
-        self.parent = parent
+        self.parent = parent  # окно родитель
 
-        self.mode = regime
-        self.info = info
+        self.mode = regime  # режим (редактирование или добавление)
+        self.info = info  # вся информация о выбранном кофе, если есть
 
-        self.fill_in_fields()
+        self.fill_in_fields()  # Заполнение формы данными если имеются
 
         self.setWindowTitle('Добавить кофе' if regime else 'Редактировать кофе')
         self.pushButton.setText('Добавить' if regime else 'Редактировать')
         self.pushButton.clicked.connect(self.slot_function)
 
     def get_input_data(self):
+        """Получение данных с формы, заполненной пользователем"""
+
         self.error_label.setText('')
 
         sort = self.sort_line.text()
@@ -121,6 +139,8 @@ class EditAddForm(QWidget):
         return [sort, degree, ground_or_grain, taste, price, volume]
 
     def slot_function(self):
+        """Функция обработчик добавления или редактирования кофе по кнопке"""
+
         input_data = self.get_input_data()
 
         if not all(input_data[:2] + input_data[3:]):
@@ -134,6 +154,8 @@ class EditAddForm(QWidget):
         self.close()
 
     def fill_in_fields(self):
+        """Заполнение формы данными о кофе"""
+
         degrees = [d[0] for d in self.parent.get_degrees()]
         self.degree_box.addItems(degrees)
         if self.info:
